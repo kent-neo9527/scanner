@@ -337,6 +337,10 @@ func CLUSAuditLogKey(hostID string, devID string) string {
 	return fmt.Sprintf("%s%s/%s", CLUSAuditLogStore, hostID, devID)
 }
 
+func CLUSScannerCreditOwnerKey(controllerID string) string {
+	return fmt.Sprintf("%scontroller/%s/scan_credits", CLUSStateStore, controllerID)
+}
+
 func CLUSAgentEventLogKey(hostID string, devID string) string {
 	return fmt.Sprintf("%s/agent", eventLogStore(hostID, devID))
 }
@@ -1151,43 +1155,45 @@ type CLUSNetPolicyMetric struct {
 }
 
 type CLUSWorkload struct {
-	ID           string                    `json:"id"`
-	Name         string                    `json:"name"`
-	AgentID      string                    `json:"agent_id"`
-	SelfHostname string                    `json:"self_hostname"`
-	HostName     string                    `json:"host_name"`
-	HostID       string                    `json:"host_id"`
-	Image        string                    `json:"image"`
-	ImageID      string                    `json:"image_id"`
-	ImgCreateAt  time.Time                 `json:"image_created_at"`
-	Privileged   bool                      `json:"privileged"`
-	RunAsRoot    bool                      `json:"run_as_root"`
-	NetworkMode  string                    `json:"network_mode"`
-	ShareNetNS   string                    `json:"share_netns"`
-	Service      string                    `json:"service"`
-	Domain       string                    `json:"domain"`
-	Author       string                    `json:"author"`
-	PlatformRole string                    `json:"platform_role"`
-	CreatedAt    time.Time                 `json:"created_at"`
-	StartedAt    time.Time                 `json:"started_at"`
-	FinishedAt   time.Time                 `json:"finished_at"`
-	Running      bool                      `json:"running"`
-	CapIntcp     bool                      `json:"cap_intcp"`
-	CapSniff     bool                      `json:"cap_sniff"`
-	HasDatapath  bool                      `json:"has_datapath"`
-	Inline       bool                      `json:"inline"`
-	Quarantine   bool                      `json:"quarantine"`
-	SecuredAt    time.Time                 `json:"secured_at"`
-	ExitCode     int                       `json:"exit_code"`
-	Pid          int                       `json:"pid"`
-	Ifaces       map[string][]CLUSIPAddr   `json:"interfaces"`
-	Ports        map[string]CLUSMappedPort `json:"ports"`
-	Labels       map[string]string         `json:"labels"`
-	Apps         map[string]CLUSApp        `json:"apps"`
-	MemoryLimit  int64                     `json:"memory_limit"`
-	CPUs         string                    `json:"cpus"`
-	ProxyMesh    bool                      `json:"proxymesh"`
-	Sidecar      bool                      `json:"sidecar"`
+	ID               string                    `json:"id"`
+	Name             string                    `json:"name"`
+	AgentID          string                    `json:"agent_id"`
+	SelfHostname     string                    `json:"self_hostname"`
+	HostName         string                    `json:"host_name"`
+	HostID           string                    `json:"host_id"`
+	Image            string                    `json:"image"`
+	ImageID          string                    `json:"image_id"`
+	ImageDigest      string                    `json:"image_digest"`
+	ImageRepoDigests []string                  `json:"image_repo_digests"`
+	ImgCreateAt      time.Time                 `json:"image_created_at"`
+	Privileged       bool                      `json:"privileged"`
+	RunAsRoot        bool                      `json:"run_as_root"`
+	NetworkMode      string                    `json:"network_mode"`
+	ShareNetNS       string                    `json:"share_netns"`
+	Service          string                    `json:"service"`
+	Domain           string                    `json:"domain"`
+	Author           string                    `json:"author"`
+	PlatformRole     string                    `json:"platform_role"`
+	CreatedAt        time.Time                 `json:"created_at"`
+	StartedAt        time.Time                 `json:"started_at"`
+	FinishedAt       time.Time                 `json:"finished_at"`
+	Running          bool                      `json:"running"`
+	CapIntcp         bool                      `json:"cap_intcp"`
+	CapSniff         bool                      `json:"cap_sniff"`
+	HasDatapath      bool                      `json:"has_datapath"`
+	Inline           bool                      `json:"inline"`
+	Quarantine       bool                      `json:"quarantine"`
+	SecuredAt        time.Time                 `json:"secured_at"`
+	ExitCode         int                       `json:"exit_code"`
+	Pid              int                       `json:"pid"`
+	Ifaces           map[string][]CLUSIPAddr   `json:"interfaces"`
+	Ports            map[string]CLUSMappedPort `json:"ports"`
+	Labels           map[string]string         `json:"labels"`
+	Apps             map[string]CLUSApp        `json:"apps"`
+	MemoryLimit      int64                     `json:"memory_limit"`
+	CPUs             string                    `json:"cpus"`
+	ProxyMesh        bool                      `json:"proxymesh"`
+	Sidecar          bool                      `json:"sidecar"`
 }
 
 type CLUSDomain struct {
@@ -1916,6 +1922,7 @@ type CLUSRegistryImageSummary struct {
 	ScannedAt         time.Time     `json:"scanned_at"`
 	CreatedAt         time.Time     `json:"created_at"`
 	BaseOS            string        `json:"base_os"`
+	OSScanStatus      OSScanStatus  `json:"os_scan_status"`
 	Version           string        `json:"version"`
 	Result            ScanErrorCode `json:"result"`
 	Status            string        `json:"status"`
@@ -1941,6 +1948,10 @@ type CLUSScanner struct {
 	RPCServerPort   uint16    `json:"rpc_port"`
 	BuiltIn         bool      `json:"builtin"`
 	CVEDBEntries    int       `json:"db_entries"`
+	// ScanCredit represents the number of scan tasks that can still be assigned to this scanner
+	ScanCredit int `json:"scan_credit"`
+	// MaxConcurrentScansPerScanner represents the maximum number of scan tasks that can be assigned to this scanner
+	MaxConcurrentScansPerScanner int `json:"max_concurrent_scans_per_scanner"`
 }
 
 type CLUSScannerStats struct {
@@ -2407,6 +2418,7 @@ type CLUSFedJointClusterInfo struct {
 	ClientCert    string             `json:"client_cert,cloak"`      // base64 encoded
 	User          string             `json:"user,omitempty"`         // the user who joins this cluster to federation
 	RestVersion   string             `json:"rest_version,omitempty"` // rest version in the code of joint cluster
+	K8sUID        string             `json:"k8s_uid"`
 	RestInfo      CLUSRestServerInfo `json:"rest_info"`
 	ProxyRequired bool               `json:"proxy_required"` // a joint cluster may be reachable without proxy even master cluster is configured to use proxy. decided when it joins fed
 }
